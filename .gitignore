@@ -1,0 +1,33 @@
+# Node.js
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Environment variables
+.env
+
+# Docker
+.docker/
+*.tar.gz
+
+# Android
+.idea/
+.gradle/
+local.properties
+
+# System Files
+.DS_Store
+Thumbs.db
+
+# Project specific
+coverage/
+*.log
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# Docker Compose
+.env
+*.env

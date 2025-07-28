@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  android-dev:
+    build: .
+    container_name: android-dev
+    environment:
+      - DISPLAY=host.docker.internal:0.0  # For Windows WSL2 display
+      - ANDROID_HOME=/opt/android-sdk
+      - ANDROID_SDK_ROOT=/opt/android-sdk
+      - PATH=/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      - QT_X11_NO_MITSHM=1
+      - NO_AT_BRIDGE=1
+      - _JAVA_OPTIONS='-XX:+IgnoreUnrecognizedVMOptions --add-modules java.se.ee'
+    devices:
+      - /dev/kvm
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+      - SYS_PTRACE
+    privileged: true
+    ports:
+      - "5554-5555:5554-5555"  # ADB ports
+      - "4723:4723"            # Appium port
+      - "5900-5901:5900-5901"  # VNC ports
+    volumes:
+      - ./:/app
+      - android_sdk:/opt/android-sdk
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    working_dir: /app
+    tty: true
+    stdin_open: true
+
+volumes:
+  android_sdk:
