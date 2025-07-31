@@ -34,16 +34,20 @@ RUN apt-get update && \
     libgbm1 \
     libxshmfence1 \
     xvfb \
+    x11vnc \
     qemu-kvm \
     libvirt-daemon-system \
     libvirt-clients \
     bridge-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js
+# Install Node.js and noVNC for web interface
 RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
-    apt-get install -y nodejs && \
-    npm install -g appium
+    apt-get install -y nodejs python3-websockify git && \
+    npm install -g appium && \
+    appium driver install uiautomator2 && \
+    git clone https://github.com/novnc/noVNC.git /opt/noVNC && \
+    ln -s /opt/noVNC/vnc.html /opt/noVNC/index.html
 
 # Install Android Command Line Tools
 RUN mkdir -p $ANDROID_HOME/cmdline-tools/latest && \
@@ -61,17 +65,14 @@ RUN yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses && \
     "platforms;android-33" \
     "build-tools;33.0.0" \
     "emulator" \
-    "system-images;android-33;google_apis;x86_64"
+    "system-images;android-33;google_apis_playstore;x86_64"
 
-# List available devices and create AVD with a valid device ID
-RUN $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager list device && \
-    echo 'Creating Android Virtual Device...' && \
-    echo 'no' | $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager create avd \
-    --name test_avd \
-    --package 'system-images;android-33;google_apis;x86_64' \
-    --device 'pixel' \
-    --force && \
-    echo 'AVD created successfully'
+# List available devices (AVD will be created at runtime in persistent volume)
+RUN $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager list device
+
+# Create volume mount points for persistent data
+RUN mkdir -p /root/.android/avd
+VOLUME ["/root/.android"]
 
 # Copy project files
 WORKDIR /app

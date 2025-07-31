@@ -74,7 +74,9 @@ export const config: WebdriverIO.Config = {
         // --- Quality of Life Setting ---
         // This prevents the app from resetting its data (e.g., logging you out)
         // between test sessions.
-        'appium:noReset': true
+        'appium:noReset': true,
+        'appium:newCommandTimeout': 300000,
+        'appium:androidInstallTimeout': 90000
     }],
     //
     // ===================
@@ -110,7 +112,7 @@ export const config: WebdriverIO.Config = {
     // baseUrl: 'http://localhost:8080',
     //
     // Default timeout for all waitFor* commands.
-    waitforTimeout: 10000,
+    waitforTimeout: 30000,
     //
     // Default timeout in milliseconds for request
     // if browser driver or grid doesn't send response
@@ -152,7 +154,7 @@ export const config: WebdriverIO.Config = {
     // See the full list at http://mochajs.org/
     mochaOpts: {
         ui: 'bdd',
-        timeout: 60000
+        timeout: 300000
     },
 
     //

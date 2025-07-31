@@ -73,67 +73,111 @@ describe('Instagram Loop Commenting with OpenAI', () => {
         console.log('--- Starting AI Comment Loop ---');
         await driver.pause(3000);
 
-        // Define the specific grid positions of the posts to comment on
-        const postCoordinates = [
-            { row: 1, col: 1 },
-            { row: 1, col: 2 },
-            { row: 1, col: 3 },
-            { row: 2, col: 1 },
-            { row: 2, col: 2 }
+        // Find all available posts in the grid
+        const postSelectors = [
+            '//android.widget.FrameLayout[@content-desc and contains(@content-desc, "row 1, column 1")]',
+            '//android.widget.FrameLayout[@content-desc and contains(@content-desc, "row 1, column 2")]', 
+            '//android.widget.FrameLayout[@content-desc and contains(@content-desc, "row 1, column 3")]',
+            '//android.widget.FrameLayout[@content-desc and contains(@content-desc, "Row 2, Column 1")]',
+            '//android.widget.FrameLayout[@content-desc and contains(@content-desc, "row 2, column 2")]'
         ];
 
         let postsCommented = 0;
 
-        for (const coords of postCoordinates) {
-            console.log(`\n--- Attempting to process post at row ${coords.row}, column ${coords.col} ---`);
+        for (let i = 0; i < postSelectors.length; i++) {
+            console.log(`\n--- Attempting to process post ${i + 1} ---`);
 
-            const postSelector = `//android.widget.Button[contains(@content-desc, "row ${coords.row}, column ${coords.col}")]`;
-            const postButton = await $(postSelector);
+            const postElement = await $(postSelectors[i]);
 
             try {
-                await postButton.waitForDisplayed({ timeout: 10000 });
-                await postButton.click();
-                console.log(`Clicked on post at row ${coords.row}, column ${coords.col}.`);
+                await postElement.waitForDisplayed({ timeout: 10000 });
+                await postElement.click();
+                console.log(`Clicked on post ${i + 1}.`);
             } catch (error) {
-                console.error(`Could not find or click post at row ${coords.row}, column ${coords.col}. Skipping.`);
+                console.error(`Could not find or click post ${i + 1}. Skipping.`);
                 continue; // Skip to the next post if this one isn't found
             }
             
             await driver.pause(2000);
 
             // --- Commenting Logic using OpenAI ---
-            const commentButton = await $('id:com.instagram.android:id/row_feed_button_comment');
+            // Scroll down a bit to ensure comment button is visible
+            await driver.performActions([{
+                type: 'pointer',
+                id: 'finger1',
+                actions: [
+                    { type: 'pointerMove', duration: 0, x: 500, y: 800 },
+                    { type: 'pointerDown', button: 0 },
+                    { type: 'pointerMove', duration: 500, x: 500, y: 600 },
+                    { type: 'pointerUp', button: 0 }
+                ]
+            }]);
+            await driver.pause(1000);
+            
+            const commentButton = await $('//android.widget.Button[@content-desc="Comment"]');
             await commentButton.waitForDisplayed({ timeout: 10000 });
             await commentButton.click();
-            await driver.pause(2000);
+            await driver.pause(3000);
 
-            const captionElement = await $('(//android.widget.TextView[@resource-id="com.instagram.android:id/row_comment_textview_comment"])[1]');
-            await captionElement.waitForDisplayed({ timeout: 15000 });
-            const captionText = await captionElement.getText();
+            // Get caption text from the post (look for the text next to username)
+            let captionText = 'Great post!';
+            try {
+                const captionElement = await $('//com.instagram.ui.widget.textview.IgTextLayoutView');
+                await captionElement.waitForDisplayed({ timeout: 5000 });
+                captionText = await captionElement.getText();
+                // Remove username from caption if present
+                captionText = captionText.replace(/^\w+\s+/, '');
+            } catch (error) {
+                console.log('Could not find caption, using fallback text');
+            }
             
             // **IMPORTANT:** We now use 'await' because generateComment makes an API call.
             const commentToPost = await generateComment(captionText);
             
             console.log(`Generated AI Comment: "${commentToPost}"`);
 
-            const commentInput = await $('id:com.instagram.android:id/layout_comment_thread_edittext');
+            const commentInput = await $('//android.widget.AutoCompleteTextView[@resource-id="com.instagram.android:id/layout_comment_thread_edittext"]');
+            await commentInput.waitForDisplayed({ timeout: 10000 });
             await commentInput.setValue(commentToPost);
-            await driver.pause(1000);
+            await driver.pause(2000);
 
-            const postCommentButton = await $('id:com.instagram.android:id/layout_comment_thread_post_button');
-            await postCommentButton.click();
+            // Look for Post button (it appears after typing)
+            try {
+                const postCommentButton = await $('//android.widget.ImageView[@resource-id="com.instagram.android:id/layout_comment_thread_post_button_icon"]');
+                await postCommentButton.waitForDisplayed({ timeout: 5000 });
+                await postCommentButton.click();
+            } catch (error) {
+                console.log('Post button not found, pressing Enter instead');
+                await driver.pressKeyCode(66); // Enter key
+            }
             postsCommented++;
             console.log(`Posted comment #${postsCommented}.`);
             await driver.pause(3000);
 
             // --- Navigate back to the grid to continue the loop ---
             console.log('Navigating back to the post grid...');
-            await driver.back(); // Back from comments screen to the post
-            await driver.pause(1000);
-            await driver.back(); // Back from the post to the grid
-            await driver.pause(1000);
-            await driver.back(); // Third back action as requested
-            await driver.pause(2000); // Wait for grid to be stable
+            
+            // Multiple back presses with verification
+            for (let backStep = 1; backStep <= 4; backStep++) {
+                console.log(`Back step ${backStep}...`);
+                await driver.back();
+                await driver.pause(1500);
+                
+                // After 3 back presses, check if we're at the grid
+                if (backStep >= 3) {
+                    try {
+                        const gridCheck = await $('//android.widget.FrameLayout[@content-desc and contains(@content-desc, "row")]');
+                        await gridCheck.waitForDisplayed({ timeout: 2000 });
+                        console.log('Successfully returned to grid');
+                        break;
+                    } catch (error) {
+                        console.log('Not at grid yet, continuing...');
+                        if (backStep === 4) {
+                            console.log('Max back attempts reached');
+                        }
+                    }
+                }
+            }
         }
 
         console.log(`\n✅ SUCCESS: Finished the loop. Commented on ${postsCommented} posts using OpenAI.`);

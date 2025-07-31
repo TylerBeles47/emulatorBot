@@ -9,13 +9,13 @@ describe('Instagram Login Automation', () => {
         // This relative XPath is robust and finds the input field next to its label.
         const usernameInput = await $('//android.view.View[@content-desc="Username, email or mobile number"]/../following-sibling::android.widget.EditText');
         await expect(usernameInput).toBeDisplayed({ message: 'Username input field was not found!' });
-        await usernameInput.setValue("Tbell_lifts");
+        await usernameInput.setValue(process.env.INSTAGRAM_USERNAME || "your_username");
 
         // --- 2. Enter Password ---
         // This uses the same reliable strategy for the password field.
         const passwordInput = await $('//android.view.View[@content-desc="Password"]/../following-sibling::android.widget.EditText');
         await expect(passwordInput).toBeDisplayed({ message: 'Password input field was not found!' });
-        await passwordInput.setValue("M0gM0nst3r47");
+        await passwordInput.setValue(process.env.INSTAGRAM_PASSWORD || "your_password");
 
         // --- 3. Click Log In ---
         // The accessibility ID is the best possible locator for the login button.
